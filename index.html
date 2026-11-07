@@ -16,6 +16,11 @@
       <button class="primary" type="button" onclick="cloudSignIn()">Entrar</button>
       <button class="secondary" type="button" onclick="cloudSignUp()">Criar conta</button>
     </div>
+    <button class="secondary fullbtn" type="button" onclick="cloudSendPasswordReset()">Esqueci minha senha</button>
+  </div>
+  <div id="passwordRecoveryPanel" style="display:none">
+    <div class="field"><label>Nova senha</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"></div>
+    <button class="primary fullbtn" type="button" onclick="cloudUpdatePassword()">Salvar nova senha</button>
   </div>
   <div id="signedInActions" style="display:none">
     <p class="note" id="signedInEmail"></p>
@@ -59,16 +64,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://gsvbysawrsydjvyyxbqn.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hKqR_ltsnWQ9W_FZ_UGOeQ_mqPIn_FS";
+const APP_URL = "https://jrserginho.github.io/meu-negocio-financeiro/";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 let cloudUser = null;
 let saveTimer = null;
 let cloudBusy = false;
+let lastLoadedUser = null;
 
 const statusEl = document.getElementById("cloudStatus");
 const messageEl = document.getElementById("cloudMessage");
 const authFields = document.getElementById("authFields");
 const signedInActions = document.getElementById("signedInActions");
+const recoveryPanel = document.getElementById("passwordRecoveryPanel");
 
 function showMessage(message, status = "Não conectado") {
   if (messageEl) messageEl.textContent = message;
@@ -81,6 +89,12 @@ function setLoggedIn(user) {
   const emailEl = document.getElementById("signedInEmail");
   if (emailEl) emailEl.textContent = user ? "Conectado como " + user.email : "";
   if (statusEl) statusEl.textContent = user ? "Conectado" : "Não conectado";
+}
+function showRecoveryForm() {
+  if (authFields) authFields.style.display = "none";
+  if (signedInActions) signedInActions.style.display = "none";
+  if (recoveryPanel) recoveryPanel.style.display = "block";
+  showMessage("Link de recuperação validado. Escolha uma nova senha.", "Redefinir senha");
 }
 
 async function saveCloudSnapshot(snapshot) {
@@ -96,7 +110,7 @@ async function saveCloudSnapshot(snapshot) {
     showMessage("Seus dados estão sincronizados com a nuvem.", "Sincronizado");
   } catch (error) {
     console.error("Falha ao sincronizar:", error);
-    showMessage("Não foi possível sincronizar: " + (error.message || "erro desconhecido"), "Erro");
+    showMessage("Falha ao sincronizar: " + (error.message || "verifique as políticas da tabela app_data"), "Erro");
   } finally {
     cloudBusy = false;
   }
@@ -107,44 +121,75 @@ window.queueCloudSave = function(snapshot) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => saveCloudSnapshot(snapshot), 900);
 };
-
 window.cloudSyncNow = async function() {
-  if (!cloudUser) return;
+  if (!cloudUser) return showMessage("Entre na sua conta antes de sincronizar.");
   await saveCloudSnapshot(window.data || JSON.parse(localStorage.getItem("meuNegocioFinanceiro_v1") || "{}"));
 };
 
 window.cloudSignUp = async function() {
   const email = document.getElementById("authEmail").value.trim();
   const password = document.getElementById("authPassword").value;
-  if (!email || password.length < 6) {
-    showMessage("Informe um e-mail válido e uma senha com pelo menos 6 caracteres.");
-    return;
-  }
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (!email || password.length < 6) return showMessage("Informe um e-mail válido e uma senha com pelo menos 6 caracteres.");
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { emailRedirectTo: APP_URL }
+  });
   if (error) return showMessage(error.message, "Erro");
-  if (data.session) {
+  if (data.session && data.user) {
     setLoggedIn(data.user);
     await loadOrInitializeCloud(data.user);
   } else {
-    showMessage("Cadastro iniciado. Confira seu e-mail para confirmar a conta; depois volte e entre.", "Confirme o e-mail");
+    showMessage("Cadastro iniciado. Confirme o e-mail e depois volte para entrar.", "Confirme o e-mail");
   }
 };
 
 window.cloudSignIn = async function() {
   const email = document.getElementById("authEmail").value.trim();
   const password = document.getElementById("authPassword").value;
+  if (!email || !password) return showMessage("Informe seu e-mail e sua senha.");
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return showMessage(error.message, "Erro");
   setLoggedIn(data.user);
   await loadOrInitializeCloud(data.user);
 };
 
+window.cloudSendPasswordReset = async function() {
+  const email = document.getElementById("authEmail").value.trim();
+  if (!email) return showMessage("Digite seu e-mail no campo acima antes de solicitar a recuperação.");
+  showMessage("Solicitando recuperação de senha...", "Enviando");
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: APP_URL
+  });
+  if (error) return showMessage(error.message, "Erro");
+  showMessage("Se o endereço estiver cadastrado, enviaremos um link. Aguarde alguns minutos antes de pedir outro.", "E-mail solicitado");
+};
+
+window.cloudUpdatePassword = async function() {
+  const password = document.getElementById("newPassword").value;
+  if (password.length < 6) return showMessage("A nova senha precisa ter pelo menos 6 caracteres.", "Atenção");
+  const { data, error } = await supabase.auth.updateUser({ password });
+  if (error) return showMessage(error.message, "Erro");
+  if (recoveryPanel) recoveryPanel.style.display = "none";
+  if (data.user) {
+    setLoggedIn(data.user);
+    await loadOrInitializeCloud(data.user);
+  } else {
+    showMessage("Senha atualizada. Agora volte e entre com a nova senha.", "Senha atualizada");
+    if (authFields) authFields.style.display = "block";
+  }
+};
+
 async function loadOrInitializeCloud(user) {
+  if (!user || lastLoadedUser === user.id) return;
+  lastLoadedUser = user.id;
   showMessage("Buscando seus dados na nuvem...", "Carregando");
   const { data: row, error } = await supabase
     .from("app_data").select("payload, updated_at")
     .eq("user_id", user.id).maybeSingle();
-  if (error) return showMessage(error.message, "Erro");
+  if (error) {
+    lastLoadedUser = null;
+    return showMessage("Login realizado, mas não foi possível acessar app_data: " + error.message, "Erro de sincronização");
+  }
 
   const localRaw = localStorage.getItem("meuNegocioFinanceiro_v1");
   let localData = {};
@@ -168,26 +213,37 @@ async function loadOrInitializeCloud(user) {
 window.cloudSignOut = async function() {
   const { error } = await supabase.auth.signOut();
   if (error) return showMessage(error.message, "Erro");
+  lastLoadedUser = null;
   setLoggedIn(null);
   showMessage("Você saiu da conta. Os dados locais continuam neste aparelho.");
 };
 
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  if (session?.user && !cloudUser) {
+supabase.auth.onAuthStateChange((event, session) => {
+  // Do not await Supabase queries inside this callback; schedule work after the auth lock is released.
+  if (event === "PASSWORD_RECOVERY") {
+    showRecoveryForm();
+    return;
+  }
+  if (session?.user) {
     setLoggedIn(session.user);
-    await loadOrInitializeCloud(session.user);
-  } else if (!session?.user) {
+    if (lastLoadedUser !== session.user.id) {
+      Promise.resolve().then(() => loadOrInitializeCloud(session.user));
+    }
+  } else {
+    lastLoadedUser = null;
     setLoggedIn(null);
   }
 });
 
-const { data: sessionData } = await supabase.auth.getSession();
-if (sessionData.session?.user) {
+const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+if (sessionError) {
+  showMessage(sessionError.message, "Erro");
+} else if (sessionData.session?.user) {
   setLoggedIn(sessionData.session.user);
   await loadOrInitializeCloud(sessionData.session.user);
 } else {
   setLoggedIn(null);
-  showMessage("Entre ou crie uma conta para ativar a sincronização. Os dados locais não serão apagados.");
+  showMessage("Entre ou crie uma conta para ativar a sincronização. Seus dados locais serão preservados.");
 }
 </script>
 
