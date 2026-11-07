@@ -5,6 +5,30 @@
 @media(max-width:420px){.app{padding-left:12px;padding-right:12px}.balance{font-size:29px}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}}
 </style></head><body><main class="app">
 <header class="top"><div class="logo">R$</div><div><h1>Meu Negócio Financeiro</h1><p>GESTÃO SIMPLES • ALIMENTAÇÃO</p></div></header>
+
+<section class="card" id="cloudAuthCard">
+  <div class="row"><strong>Conta e sincronização</strong><span class="pill" id="cloudStatus">Não conectado</span></div>
+  <p class="note" id="cloudMessage">Entre ou crie uma conta para sincronizar seus dados entre aparelhos. Seus dados locais continuam preservados.</p>
+  <div id="authFields">
+    <div class="field"><label>E-mail</label><input id="authEmail" type="email" autocomplete="email" placeholder="seu@email.com"></div>
+    <div class="field"><label>Senha</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo de 6 caracteres"></div>
+    <div class="formgrid">
+      <button class="primary" type="button" onclick="cloudSignIn()">Entrar</button>
+      <button class="secondary" type="button" onclick="cloudSignUp()">Criar conta</button>
+    </div>
+    <button class="secondary fullbtn" type="button" onclick="cloudSendPasswordReset()">Esqueci minha senha</button>
+  </div>
+  <div id="passwordRecoveryPanel" style="display:none">
+    <div class="field"><label>Nova senha</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"></div>
+    <button class="primary fullbtn" type="button" onclick="cloudUpdatePassword()">Salvar nova senha</button>
+  </div>
+  <div id="signedInActions" style="display:none">
+    <p class="note" id="signedInEmail"></p>
+    <button class="secondary fullbtn" type="button" onclick="cloudSyncNow()">Sincronizar agora</button>
+    <button class="secondary fullbtn" type="button" onclick="cloudSignOut()">Sair da conta</button>
+  </div>
+</section>
+
 <section class="card"><div class="row"><span class="eyebrow">SALDO DO NEGÓCIO</span><span class="pill" id="periodLabel">Este mês</span></div><div class="balance" id="balance">R$ 0,00</div><div class="stats"><div class="stat"><small>Entradas do mês</small><strong class="green" id="income">R$ 0,00</strong></div><div class="stat"><small>Saídas do mês</small><strong class="red" id="expense">R$ 0,00</strong></div></div></section>
 <div class="actions"><button class="action" onclick="showTab('sales')"><b>＋</b>Registrar venda</button><button class="action" onclick="openForm('expense')"><b>－</b>Novo gasto</button><button class="action" onclick="showTab('accounts')"><b>▣</b>Contas a pagar</button></div>
 <nav class="tabs"><button class="tab active" data-tab="home" onclick="showTab('home')">Início</button><button class="tab" data-tab="sales" onclick="showTab('sales')">Vendas do dia</button><button class="tab" data-tab="transactions" onclick="showTab('transactions')">Lançamentos</button><button class="tab" data-tab="accounts" onclick="showTab('accounts')">Contas</button><button class="tab" data-tab="cards" onclick="showTab('cards')">Cartões</button><button class="tab" data-tab="debts" onclick="showTab('debts')">Dívidas</button><button class="tab" data-tab="goals" onclick="showTab('goals')">Metas</button><button class="tab" data-tab="reports" onclick="showTab('reports')">Relatórios</button><button class="tab" data-tab="settings" onclick="showTab('settings')">Dados</button></nav>
@@ -17,10 +41,210 @@
 <section id="goals" class="section"><div class="row"><h2>Metas de economia</h2><button class="primary" onclick="addGoal()">＋ Meta</button></div><div class="card"><div id="goalList"></div></div></section>
 <section id="reports" class="section"><h2>Relatórios</h2><div class="card"><div class="field"><label>Período</label><input id="reportMonth" type="month" onchange="renderReports()"></div><div class="stats"><div class="stat"><small>Receitas</small><strong class="green" id="rIncome">R$ 0,00</strong></div><div class="stat"><small>Despesas</small><strong class="red" id="rExpense">R$ 0,00</strong></div></div><div class="item row"><strong>Resultado do período</strong><strong id="rResult">R$ 0,00</strong></div><h3 style="font-size:14px">Despesas por categoria</h3><div id="categoryReport"></div></div></section>
 <section id="settings" class="section"><h2>Backup e categorias</h2><div class="card"><strong>Seus dados neste aparelho</strong><p class="note">Os lançamentos ficam salvos neste navegador. Exporte uma cópia de segurança regularmente. Se limpar os dados do navegador ou trocar de aparelho, importe o backup para recuperar as informações.</p><button class="primary fullbtn" onclick="exportData()">Exportar backup</button><label class="secondary fullbtn" style="display:block;text-align:center;margin-top:9px">Importar backup<input type="file" accept="application/json" style="display:none" onchange="importData(event)"></label><button class="secondary fullbtn" style="margin-top:9px" onclick="exportCSV()">Exportar lançamentos em CSV</button></div><div class="card"><strong>Categorias configuradas</strong><div id="categories"></div></div><div class="card"><strong>Apagar todos os dados</strong><p class="note">Esta ação não pode ser desfeita. Exporte um backup antes.</p><button class="dangerbtn" onclick="clearData()">Apagar dados</button></div></section>
-</main><div class="footer">Meu Negócio Financeiro • versão inicial • dados armazenados neste aparelho</div>
+</main><div class="footer">Meu Negócio Financeiro • sincronização opcional com Supabase</div>
 <dialog id="txDialog" style="background:#191b20;color:#fff;border:1px solid #444;border-radius:18px;width:min(94%,520px);padding:20px"><form id="txForm"><div class="row"><h2 id="formTitle" style="margin:0;font-size:18px">Novo lançamento</h2><button type="button" class="secondary" onclick="closeDialog('txDialog')">✕</button></div><div class="formgrid"><div class="field"><label>Tipo</label><select id="txType"><option value="income">Entrada</option><option value="expense">Saída</option></select></div><div class="field"><label>Valor (R$)</label><input id="txAmount" type="number" min="0.01" step="0.01" required placeholder="0,00"></div><div class="field full"><label>Descrição</label><input id="txDesc" required placeholder="Ex.: venda de 20 coxinhas"></div><div class="field"><label>Categoria</label><select id="txCategory"></select></div><div class="field"><label>Data</label><input id="txDate" type="date" required></div><div class="field"><label>Forma de pagamento</label><select id="txMethod"><option>Pix</option><option>Dinheiro</option><option>Débito</option><option>Crédito</option><option>Transferência</option><option>Outro</option></select></div><div class="field"><label>Observação (opcional)</label><input id="txNote" placeholder="Detalhes"></div></div><button class="primary fullbtn" type="submit">Salvar lançamento</button></form></dialog>
 <script>
 const CATS={income:['Venda de salgados','Venda de açaí','Lanches','Bebidas','Encomendas','Delivery','Outras vendas'],expense:['Ingredientes','Embalagens','Óleo e gás','Polpas e complementos','Mercadorias','Aluguel','Água e luz','Internet','Funcionários','Taxas de aplicativos','Marketing','Transporte','Manutenção','Outras despesas']};
-const KEY='meuNegocioFinanceiro_v1';let data=load();function load(){try{let d=JSON.parse(localStorage.getItem(KEY))||{};return {transactions:d.transactions||[],accounts:d.accounts||[],cards:d.cards||[],debts:d.debts||[],goals:d.goals||[],products:d.products||[]}}catch(e){return{transactions:[],accounts:[],cards:[],debts:[],goals:[],products:[]}}}function save(){localStorage.setItem(KEY,JSON.stringify(data));renderAll()}const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const today=()=>{let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const uid=()=>window.crypto?.randomUUID?window.crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2);const month=()=>today().slice(0,7);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function showTab(id){document.querySelectorAll('.section').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));renderAll();window.scrollTo({top:0,behavior:'smooth'})}function openForm(type){document.getElementById('txForm').reset();document.getElementById('txType').value=type||'income';document.getElementById('txDate').value=today();fillCats();document.getElementById('formTitle').textContent=type==='expense'?'Nova despesa':'Nova movimentação';document.getElementById('txDialog').showModal()}function closeDialog(id){document.getElementById(id).close()}function fillCats(){let t=document.getElementById('txType').value;document.getElementById('txCategory').innerHTML=CATS[t].map(x=>`<option>${esc(x)}</option>`).join('')}document.getElementById('txType').addEventListener('change',fillCats);document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();data.transactions.unshift({id:uid(),type:document.getElementById('txType').value,amount:Number(document.getElementById('txAmount').value),desc:document.getElementById('txDesc').value,category:document.getElementById('txCategory').value,date:document.getElementById('txDate').value,method:document.getElementById('txMethod').value,note:document.getElementById('txNote').value});closeDialog('txDialog');save()});function txHTML(t){return `<div class="item row"><div style="min-width:0"><strong>${esc(t.desc)}</strong><small>${esc(t.category)} • ${t.date.split('-').reverse().join('/')} • ${esc(t.method)}</small></div><div style="text-align:right"><div class="amount ${t.type==='income'?'green':'red'}">${t.type==='income'?'+':'−'} ${money(t.amount)}</div><button class="dangerbtn" onclick="removeItem('transactions','${t.id}')">Excluir</button></div></div>`}function renderTransactions(){let f=document.getElementById('filterType')?.value||'all',m=document.getElementById('filterMonth')?.value||month();let a=data.transactions.filter(t=>(f==='all'||t.type===f)&&t.date.startsWith(m));document.getElementById('transactionList').innerHTML=a.length?a.map(txHTML).join(''):'<div class="empty">Nenhum lançamento neste período.</div>'}function totals(m){let a=data.transactions.filter(t=>t.date.startsWith(m));return{inc:a.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0),exp:a.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)}}function renderHome(){let t=totals(month()),allInc=data.transactions.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0),allExp=data.transactions.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);document.getElementById('income').textContent=money(t.inc);document.getElementById('expense').textContent=money(t.exp);document.getElementById('balance').textContent=money(allInc-allExp);document.getElementById('recent').innerHTML=data.transactions.slice(0,5).map(txHTML).join('')||'<div class="empty">Adicione sua primeira venda ou despesa.</div>';let up=data.accounts.filter(a=>!a.paid).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);document.getElementById('upcoming').innerHTML=up.map(a=>`<div class="item row"><div><strong>${esc(a.name)}</strong><small>Vence em ${a.due.split('-').reverse().join('/')}</small></div><strong class="red">${money(a.amount)}</strong></div>`).join('')||'<div class="empty">Nenhuma conta pendente cadastrada.</div>'}function renderSales(){let date=document.getElementById('salesDate')?.value||today();let day=data.transactions.filter(t=>t.date===date);let sales=day.filter(t=>t.type==='income'&&t.sale===true);let costs=day.filter(t=>t.type==='expense'&&t.saleCost===true).reduce((a,t)=>a+t.amount,0);let revenue=sales.reduce((a,t)=>a+t.amount,0);document.getElementById('dayRevenue').textContent=money(revenue);document.getElementById('dayCosts').textContent=money(costs);document.getElementById('dayProfit').textContent=money(revenue-costs);document.getElementById('dayCount').textContent=sales.length;document.getElementById('daySalesList').innerHTML=sales.map(txHTML).join('')||'<div class="empty">Nenhuma venda registrada nesta data.</div>';document.getElementById('productList').innerHTML=data.products.map(p=>`<div class="item row"><div><strong>${esc(p.name)}</strong><small>Venda ${money(p.price)} • Custo ${money(p.cost)} por unidade</small></div><button class="dangerbtn" onclick="removeProduct('${p.id}')">Excluir</button></div>`).join('')||'<div class="empty">Cadastre produtos para lançar vendas por quantidade.</div>';document.getElementById('saleProduct').innerHTML=data.products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${money(p.price)}</option>`).join('')||'<option value="">Cadastre um produto primeiro</option>';}function addProduct(){let name=prompt('Nome do produto (ex.: Açaí 500 ml):');if(!name)return;let price=Number(prompt('Preço de venda por unidade (R$):','0'));if(!(price>0))return alert('Informe um preço válido.');let cost=Number(prompt('Custo estimado por unidade (R$):','0'));if(!(cost>=0))return alert('Informe um custo válido.');data.products.push({id:uid(),name,price,cost});save()}function removeProduct(id){if(confirm('Excluir este produto do catálogo? As vendas antigas serão mantidas.')){data.products=data.products.filter(p=>p.id!==id);save()}}function registerProductSale(){let id=document.getElementById('saleProduct').value,p=data.products.find(x=>x.id===id),qty=Math.floor(Number(document.getElementById('saleQty').value));if(!p)return alert('Cadastre um produto primeiro.');if(!(qty>0))return alert('Informe uma quantidade válida.');let date=document.getElementById('salesDate').value||today(),method=document.getElementById('saleMethod').value;data.transactions.unshift({id:uid(),type:'income',amount:p.price*qty,desc:`${qty}x ${p.name}`,category:p.name.toLowerCase().includes('aça')?'Venda de açaí':p.name.toLowerCase().includes('salg')?'Venda de salgados':'Outras vendas',date,method,note:'Venda por produto',sale:true,productId:id,quantity:qty});if(p.cost*qty>0)data.transactions.unshift({id:uid(),type:'expense',amount:p.cost*qty,desc:`Custo de ${qty}x ${p.name}`,category:'Ingredientes',date,method:'Custo de produto',note:'Custo automático estimado da venda',saleCost:true,productId:id,quantity:qty});save()}function registerManualSale(){let desc=document.getElementById('manualDesc').value.trim()||'Venda manual',amount=Number(document.getElementById('manualAmount').value);if(!(amount>0))return alert('Informe um valor válido.');data.transactions.unshift({id:uid(),type:'income',amount,desc,category:'Outras vendas',date:document.getElementById('salesDate').value||today(),method:document.getElementById('manualMethod').value,note:'Venda lançada manualmente',sale:true});document.getElementById('manualDesc').value='';document.getElementById('manualAmount').value='';save()}
+const KEY='meuNegocioFinanceiro_v1';let data=load();function load(){try{let d=JSON.parse(localStorage.getItem(KEY))||{};return {transactions:d.transactions||[],accounts:d.accounts||[],cards:d.cards||[],debts:d.debts||[],goals:d.goals||[],products:d.products||[]}}catch(e){return{transactions:[],accounts:[],cards:[],debts:[],goals:[],products:[]}}}function save(){localStorage.setItem(KEY,JSON.stringify(data));renderAll();if(window.queueCloudSave)window.queueCloudSave(data)}const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const today=()=>{let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};const uid=()=>window.crypto?.randomUUID?window.crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2);const month=()=>today().slice(0,7);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function showTab(id){document.querySelectorAll('.section').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));renderAll();window.scrollTo({top:0,behavior:'smooth'})}function openForm(type){document.getElementById('txForm').reset();document.getElementById('txType').value=type||'income';document.getElementById('txDate').value=today();fillCats();document.getElementById('formTitle').textContent=type==='expense'?'Nova despesa':'Nova movimentação';document.getElementById('txDialog').showModal()}function closeDialog(id){document.getElementById(id).close()}function fillCats(){let t=document.getElementById('txType').value;document.getElementById('txCategory').innerHTML=CATS[t].map(x=>`<option>${esc(x)}</option>`).join('')}document.getElementById('txType').addEventListener('change',fillCats);document.getElementById('txForm').addEventListener('submit',e=>{e.preventDefault();data.transactions.unshift({id:uid(),type:document.getElementById('txType').value,amount:Number(document.getElementById('txAmount').value),desc:document.getElementById('txDesc').value,category:document.getElementById('txCategory').value,date:document.getElementById('txDate').value,method:document.getElementById('txMethod').value,note:document.getElementById('txNote').value});closeDialog('txDialog');save()});function txHTML(t){return `<div class="item row"><div style="min-width:0"><strong>${esc(t.desc)}</strong><small>${esc(t.category)} • ${t.date.split('-').reverse().join('/')} • ${esc(t.method)}</small></div><div style="text-align:right"><div class="amount ${t.type==='income'?'green':'red'}">${t.type==='income'?'+':'−'} ${money(t.amount)}</div><button class="dangerbtn" onclick="removeItem('transactions','${t.id}')">Excluir</button></div></div>`}function renderTransactions(){let f=document.getElementById('filterType')?.value||'all',m=document.getElementById('filterMonth')?.value||month();let a=data.transactions.filter(t=>(f==='all'||t.type===f)&&t.date.startsWith(m));document.getElementById('transactionList').innerHTML=a.length?a.map(txHTML).join(''):'<div class="empty">Nenhum lançamento neste período.</div>'}function totals(m){let a=data.transactions.filter(t=>t.date.startsWith(m));return{inc:a.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0),exp:a.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)}}function renderHome(){let t=totals(month()),allInc=data.transactions.filter(x=>x.type==='income').reduce((s,x)=>s+x.amount,0),allExp=data.transactions.filter(x=>x.type==='expense').reduce((s,x)=>s+x.amount,0);document.getElementById('income').textContent=money(t.inc);document.getElementById('expense').textContent=money(t.exp);document.getElementById('balance').textContent=money(allInc-allExp);document.getElementById('recent').innerHTML=data.transactions.slice(0,5).map(txHTML).join('')||'<div class="empty">Adicione sua primeira venda ou despesa.</div>';let up=data.accounts.filter(a=>!a.paid).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);document.getElementById('upcoming').innerHTML=up.map(a=>`<div class="item row"><div><strong>${esc(a.name)}</strong><small>Vence em ${a.due.split('-').reverse().join('/')}</small></div><strong class="red">${money(a.amount)}</strong></div>`).join('')||'<div class="empty">Nenhuma conta pendente cadastrada.</div>'}function renderSales(){let date=document.getElementById('salesDate')?.value||today();let day=data.transactions.filter(t=>t.date===date);let sales=day.filter(t=>t.type==='income'&&t.sale===true);let costs=day.filter(t=>t.type==='expense'&&t.saleCost===true).reduce((a,t)=>a+t.amount,0);let revenue=sales.reduce((a,t)=>a+t.amount,0);document.getElementById('dayRevenue').textContent=money(revenue);document.getElementById('dayCosts').textContent=money(costs);document.getElementById('dayProfit').textContent=money(revenue-costs);document.getElementById('dayCount').textContent=sales.length;document.getElementById('daySalesList').innerHTML=sales.map(txHTML).join('')||'<div class="empty">Nenhuma venda registrada nesta data.</div>';document.getElementById('productList').innerHTML=data.products.map(p=>`<div class="item row"><div><strong>${esc(p.name)}</strong><small>Venda ${money(p.price)} • Custo ${money(p.cost)} por unidade</small></div><button class="dangerbtn" onclick="removeProduct('${p.id}')">Excluir</button></div>`).join('')||'<div class="empty">Cadastre produtos para lançar vendas por quantidade.</div>';document.getElementById('saleProduct').innerHTML=data.products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${money(p.price)}</option>`).join('')||'<option value="">Cadastre um produto primeiro</option>';}function addProduct(){let name=prompt('Nome do produto (ex.: Açaí 500 ml):');if(!name)return;let price=Number(prompt('Preço de venda por unidade (R$):','0'));if(!(price>0))return alert('Informe um preço válido.');let cost=Number(prompt('Custo estimado por unidade (R$):','0'));if(!(cost>=0))return alert('Informe um custo válido.');data.products.push({id:uid(),name,price,cost});save()}function removeProduct(id){if(confirm('Excluir este produto do catálogo? As vendas antigas serão mantidas.')){data.products=data.products.filter(p=>p.id!==id);save()}}function registerProductSale(){let id=document.getElementById('saleProduct').value,p=data.products.find(x=>x.id===id),qty=Math.floor(Number(document.getElementById('saleQty').value));if(!p)return alert('Cadastre um produto primeiro.');if(!(qty>0))return alert('Informe uma quantidade válida.');let date=document.getElementById('salesDate').value||today(),method=document.getElementById('saleMethod').value;data.transactions.unshift({id:uid(),type:'income',amount:p.price*qty,desc:`${qty}x ${p.name}`,category:p.name.toLowerCase().includes('aça')?'Venda de açaí':p.name.toLowerCase().includes('salg')?'Venda de salgados':'Outras vendas',date,method,note:'Venda por produto',sale:true,productId:id,quantity:qty});if(p.cost*qty>0)data.transactions.unshift({id:uid(),type:'expense',amount:p.cost*qty,desc:`Custo de ${qty}x ${p.name}`,category:'Ingredientes',date,method:'Custo de produto',note:'Custo automático estimado da venda',saleCost:true,productId:id,quantity:qty});save()}function registerManualSale(){let desc=document.getElementById('manualDesc').value.trim()||'Venda manual',amount=Number(document.getElementById('manualAmount').value);if(!(amount>0))return alert('Informe um valor válido.');data.transactions.unshift({id:uid(),type:'income',amount,desc,category:'Outras vendas',date:document.getElementById('salesDate').value||today(),method:document.getElementById('manualMethod').value,note:'Venda lançada manualmente',sale:true});document.getElementById('manualDesc').value='';document.getElementById('manualAmount').value='';save()}
 function addAccount(){let name=prompt('Nome da conta (ex.: aluguel, fornecedor):');if(!name)return;let amount=Number(prompt('Valor em R$:'));if(!amount||amount<0)return alert('Informe um valor válido.');let due=prompt('Vencimento (AAAA-MM-DD):',today());if(!/^\d{4}-\d{2}-\d{2}$/.test(due||''))return alert('Data inválida.');data.accounts.push({id:uid(),name,amount,due,paid:false});save()}function renderAccounts(){document.getElementById('accountList').innerHTML=data.accounts.map(a=>`<div class="item row"><div><strong>${esc(a.name)}</strong><small>Vencimento: ${a.due.split('-').reverse().join('/')} • ${a.paid?'Paga':'Pendente'}</small><strong>${money(a.amount)}</strong></div><div style="display:grid;gap:6px"><button class="secondary" onclick="togglePaid('${a.id}')">${a.paid?'Reabrir':'Marcar paga'}</button><button class="dangerbtn" onclick="removeItem('accounts','${a.id}')">Excluir</button></div></div>`).join('')||'<div class="empty">Cadastre aluguel, fornecedores, contas de água, luz e outras obrigações.</div>'}function togglePaid(id){let a=data.accounts.find(x=>x.id===id);a.paid=!a.paid;if(a.paid&&!a.txId){data.transactions.unshift({id:uid(),type:'expense',amount:a.amount,desc:'Pagamento: '+a.name,category:'Outras despesas',date:today(),method:'Outro',note:'Gerado ao marcar conta como paga'});a.txId=true}save()}function addCard(){let name=prompt('Nome do cartão/banco:');if(!name)return;let limit=Number(prompt('Limite total (R$):'));if(!limit||limit<0)return alert('Limite inválido.');let close=prompt('Dia de fechamento (1 a 31):','5'),due=prompt('Dia de vencimento (1 a 31):','12');data.cards.push({id:uid(),name,limit,close:Number(close),due:Number(due),used:0});save()}function renderCards(){document.getElementById('cardList').innerHTML=data.cards.map(c=>`<div class="card"><div class="row"><strong>${esc(c.name)}</strong><button class="dangerbtn" onclick="removeItem('cards','${c.id}')">Excluir</button></div><div class="row"><span class="muted">Limite usado</span><strong>${money(c.used)} / ${money(c.limit)}</strong></div><div class="bar"><span style="width:${Math.min(100,c.used/c.limit*100)}%"></span></div><div class="row muted"><small>Fecha dia ${c.close} • Vence dia ${c.due}</small><button class="secondary" onclick="cardPurchase('${c.id}')">Registrar compra</button></div></div>`).join('')||'<div class="card empty">Cadastre seus cartões para acompanhar limites e datas.</div>'}function cardPurchase(id){let c=data.cards.find(x=>x.id===id),v=Number(prompt('Valor da compra no cartão (R$):'));if(!v||v<0)return;let desc=prompt('Descrição da compra:','Compra no cartão');c.used+=v;data.transactions.unshift({id:uid(),type:'expense',amount:v,desc:desc||'Compra no cartão',category:'Mercadorias',date:today(),method:'Crédito',note:c.name});save()}function addDebt(){let name=prompt('Credor ou descrição da dívida:');if(!name)return;let total=Number(prompt('Valor total da dívida (R$):'));if(!total||total<0)return;let paid=Number(prompt('Quanto já foi pago? (R$)','0'));data.debts.push({id:uid(),name,total,paid:Math.min(total,Math.max(0,paid))});save()}function renderDebts(){document.getElementById('debtList').innerHTML=data.debts.map(d=>`<div class="item"><div class="row"><strong>${esc(d.name)}</strong><button class="dangerbtn" onclick="removeItem('debts','${d.id}')">Excluir</button></div><div class="row"><small class="muted">Pago ${money(d.paid)} de ${money(d.total)}</small><strong class="red">Falta ${money(d.total-d.paid)}</strong></div><div class="bar"><span style="width:${Math.min(100,d.paid/d.total*100)}%"></span></div><button class="secondary" onclick="payDebt('${d.id}')">Registrar pagamento</button></div>`).join('')||'<div class="empty">Nenhuma dívida cadastrada.</div>'}function payDebt(id){let d=data.debts.find(x=>x.id===id),v=Number(prompt('Valor pago agora (R$):'));if(!v||v<0)return;d.paid=Math.min(d.total,d.paid+v);data.transactions.unshift({id:uid(),type:'expense',amount:v,desc:'Pagamento de dívida: '+d.name,category:'Outras despesas',date:today(),method:'Outro',note:''});save()}function addGoal(){let name=prompt('Nome da meta (ex.: reserva para equipamentos):');if(!name)return;let target=Number(prompt('Valor desejado (R$):'));if(!target||target<0)return;let saved=Number(prompt('Quanto já guardou? (R$)','0'));data.goals.push({id:uid(),name,target,saved:Math.max(0,saved)});save()}function renderGoals(){document.getElementById('goalList').innerHTML=data.goals.map(g=>`<div class="item"><div class="row"><strong>${esc(g.name)}</strong><button class="dangerbtn" onclick="removeItem('goals','${g.id}')">Excluir</button></div><div class="row"><small class="muted">${money(g.saved)} guardados</small><strong>${money(g.target)}</strong></div><div class="bar"><span style="width:${Math.min(100,g.saved/g.target*100)}%"></span></div><button class="secondary" onclick="addToGoal('${g.id}')">Adicionar valor guardado</button></div>`).join('')||'<div class="empty">Crie uma meta para sua reserva financeira.</div>'}function addToGoal(id){let g=data.goals.find(x=>x.id===id),v=Number(prompt('Quanto deseja adicionar à meta? (R$)'));if(!v||v<0)return;g.saved+=v;save()}function renderReports(){let m=document.getElementById('reportMonth')?.value||month(),t=totals(m);document.getElementById('rIncome').textContent=money(t.inc);document.getElementById('rExpense').textContent=money(t.exp);document.getElementById('rResult').textContent=money(t.inc-t.exp);let cats={};data.transactions.filter(x=>x.type==='expense'&&x.date.startsWith(m)).forEach(x=>cats[x.category]=(cats[x.category]||0)+x.amount);let max=Math.max(1,...Object.values(cats));document.getElementById('categoryReport').innerHTML=Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="item"><div class="row"><span>${esc(k)}</span><strong>${money(v)}</strong></div><div class="bar"><span style="width:${v/max*100}%"></span></div></div>`).join('')||'<div class="empty">Sem despesas neste mês.</div>'}function renderCategories(){document.getElementById('categories').innerHTML='<p class="muted">Entradas</p>'+CATS.income.map(x=>`<div class="item">${esc(x)}</div>`).join('')+'<p class="muted">Custos e despesas</p>'+CATS.expense.map(x=>`<div class="item">${esc(x)}</div>`).join('')}function removeItem(key,id){if(confirm('Excluir este registro?')){data[key]=data[key].filter(x=>x.id!==id);save()}}function renderAll(){renderHome();renderSales();renderTransactions();renderAccounts();renderCards();renderDebts();renderGoals();renderReports();renderCategories()}function exportData(){let b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='backup-meu-negocio-financeiro.json';a.click();URL.revokeObjectURL(a.href)}function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.transactions||!d.accounts||!d.cards||!d.debts||!d.goals)throw 0;if(confirm('Importar backup? Os dados atuais serão substituídos.')){data=d;save();alert('Backup importado!')}}catch(err){alert('Arquivo de backup inválido.')}};r.readAsText(f)}function exportCSV(){let rows=[['tipo','descricao','categoria','valor','data','pagamento'],...data.transactions.map(t=>[t.type,t.desc,t.category,t.amount,t.date,t.method])];let csv=rows.map(r=>r.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download='lancamentos-financeiros.csv';a.click();URL.revokeObjectURL(a.href)}function clearData(){if(confirm('Tem certeza? Todos os dados salvos neste navegador serão apagados.')){data={transactions:[],accounts:[],cards:[],debts:[],goals:[]};save()}}document.getElementById('filterMonth').value=month();document.getElementById('reportMonth').value=month();document.getElementById('salesDate').value=today();renderAll();
-</script><script>if("serviceWorker" in navigator && location.protocol.startsWith("http")){window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));}</script></body></html>
+</script>
+<script>
+window.reloadLocalData = function() {
+  try {
+    const d = JSON.parse(localStorage.getItem("meuNegocioFinanceiro_v1")) || {};
+    data = {transactions:d.transactions||[],accounts:d.accounts||[],cards:d.cards||[],debts:d.debts||[],goals:d.goals||[],products:d.products||[]};
+    renderAll();
+  } catch (e) { console.error("Não foi possível carregar dados locais", e); }
+};
+window.data = data;
+</script>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = "https://gsvbysawrsydjvyyxbqn.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hKqR_ltsnWQ9W_FZ_UGOeQ_mqPIn_FS";
+const APP_URL = "https://jrserginho.github.io/meu-negocio-financeiro/";
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let cloudUser = null;
+let saveTimer = null;
+let cloudBusy = false;
+let lastLoadedUser = null;
+
+const statusEl = document.getElementById("cloudStatus");
+const messageEl = document.getElementById("cloudMessage");
+const authFields = document.getElementById("authFields");
+const signedInActions = document.getElementById("signedInActions");
+const recoveryPanel = document.getElementById("passwordRecoveryPanel");
+
+function showMessage(message, status = "Não conectado") {
+  if (messageEl) messageEl.textContent = message;
+  if (statusEl) statusEl.textContent = status;
+}
+function setLoggedIn(user) {
+  cloudUser = user || null;
+  if (authFields) authFields.style.display = user ? "none" : "block";
+  if (signedInActions) signedInActions.style.display = user ? "block" : "none";
+  const emailEl = document.getElementById("signedInEmail");
+  if (emailEl) emailEl.textContent = user ? "Conectado como " + user.email : "";
+  if (statusEl) statusEl.textContent = user ? "Conectado" : "Não conectado";
+}
+function showRecoveryForm() {
+  if (authFields) authFields.style.display = "none";
+  if (signedInActions) signedInActions.style.display = "none";
+  if (recoveryPanel) recoveryPanel.style.display = "block";
+  showMessage("Link de recuperação validado. Escolha uma nova senha.", "Redefinir senha");
+}
+
+async function saveCloudSnapshot(snapshot) {
+  if (!cloudUser || cloudBusy) return;
+  cloudBusy = true;
+  try {
+    const { error } = await supabase.from("app_data").upsert({
+      user_id: cloudUser.id,
+      payload: snapshot,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id" });
+    if (error) throw error;
+    showMessage("Seus dados estão sincronizados com a nuvem.", "Sincronizado");
+  } catch (error) {
+    console.error("Falha ao sincronizar:", error);
+    showMessage("Falha ao sincronizar: " + (error.message || "verifique as políticas da tabela app_data"), "Erro");
+  } finally {
+    cloudBusy = false;
+  }
+}
+
+window.queueCloudSave = function(snapshot) {
+  if (!cloudUser) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveCloudSnapshot(snapshot), 900);
+};
+window.cloudSyncNow = async function() {
+  if (!cloudUser) return showMessage("Entre na sua conta antes de sincronizar.");
+  await saveCloudSnapshot(window.data || JSON.parse(localStorage.getItem("meuNegocioFinanceiro_v1") || "{}"));
+};
+
+window.cloudSignUp = async function() {
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  if (!email || password.length < 6) return showMessage("Informe um e-mail válido e uma senha com pelo menos 6 caracteres.");
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { emailRedirectTo: APP_URL }
+  });
+  if (error) return showMessage(error.message, "Erro");
+  if (data.session && data.user) {
+    setLoggedIn(data.user);
+    await loadOrInitializeCloud(data.user);
+  } else {
+    showMessage("Cadastro iniciado. Confirme o e-mail e depois volte para entrar.", "Confirme o e-mail");
+  }
+};
+
+window.cloudSignIn = async function() {
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  if (!email || !password) return showMessage("Informe seu e-mail e sua senha.");
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return showMessage(error.message, "Erro");
+  setLoggedIn(data.user);
+  await loadOrInitializeCloud(data.user);
+};
+
+window.cloudSendPasswordReset = async function() {
+  const email = document.getElementById("authEmail").value.trim();
+  if (!email) return showMessage("Digite seu e-mail no campo acima antes de solicitar a recuperação.");
+  showMessage("Solicitando recuperação de senha...", "Enviando");
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: APP_URL
+  });
+  if (error) return showMessage(error.message, "Erro");
+  showMessage("Se o endereço estiver cadastrado, enviaremos um link. Aguarde alguns minutos antes de pedir outro.", "E-mail solicitado");
+};
+
+window.cloudUpdatePassword = async function() {
+  const password = document.getElementById("newPassword").value;
+  if (password.length < 6) return showMessage("A nova senha precisa ter pelo menos 6 caracteres.", "Atenção");
+  const { data, error } = await supabase.auth.updateUser({ password });
+  if (error) return showMessage(error.message, "Erro");
+  if (recoveryPanel) recoveryPanel.style.display = "none";
+  if (data.user) {
+    setLoggedIn(data.user);
+    await loadOrInitializeCloud(data.user);
+  } else {
+    showMessage("Senha atualizada. Agora volte e entre com a nova senha.", "Senha atualizada");
+    if (authFields) authFields.style.display = "block";
+  }
+};
+
+async function loadOrInitializeCloud(user) {
+  if (!user || lastLoadedUser === user.id) return;
+  lastLoadedUser = user.id;
+  showMessage("Buscando seus dados na nuvem...", "Carregando");
+  const { data: row, error } = await supabase
+    .from("app_data").select("payload, updated_at")
+    .eq("user_id", user.id).maybeSingle();
+  if (error) {
+    lastLoadedUser = null;
+    return showMessage("Login realizado, mas não foi possível acessar app_data: " + error.message, "Erro de sincronização");
+  }
+
+  const localRaw = localStorage.getItem("meuNegocioFinanceiro_v1");
+  let localData = {};
+  try { localData = localRaw ? JSON.parse(localRaw) : {}; } catch (_) {}
+
+  if (row && row.payload) {
+    const hasLocal = Object.values(localData).some(v => Array.isArray(v) && v.length);
+    if (hasLocal && !confirm("Encontramos dados salvos neste aparelho e dados na nuvem. OK = usar os dados da nuvem. Cancelar = manter os dados deste aparelho e enviá-los para a nuvem.")) {
+      await saveCloudSnapshot(localData);
+      return;
+    }
+    localStorage.setItem("meuNegocioFinanceiro_v1", JSON.stringify(row.payload));
+    if (typeof window.reloadLocalData === "function") window.reloadLocalData();
+    showMessage("Dados da nuvem carregados neste aparelho.", "Sincronizado");
+  } else {
+    await saveCloudSnapshot(localData);
+    showMessage("Sua conta está pronta. Os dados deste aparelho foram enviados para a nuvem.", "Sincronizado");
+  }
+}
+
+window.cloudSignOut = async function() {
+  const { error } = await supabase.auth.signOut();
+  if (error) return showMessage(error.message, "Erro");
+  lastLoadedUser = null;
+  setLoggedIn(null);
+  showMessage("Você saiu da conta. Os dados locais continuam neste aparelho.");
+};
+
+supabase.auth.onAuthStateChange((event, session) => {
+  // Do not await Supabase queries inside this callback; schedule work after the auth lock is released.
+  if (event === "PASSWORD_RECOVERY") {
+    showRecoveryForm();
+    return;
+  }
+  if (session?.user) {
+    setLoggedIn(session.user);
+    if (lastLoadedUser !== session.user.id) {
+      Promise.resolve().then(() => loadOrInitializeCloud(session.user));
+    }
+  } else {
+    lastLoadedUser = null;
+    setLoggedIn(null);
+  }
+});
+
+const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+if (sessionError) {
+  showMessage(sessionError.message, "Erro");
+} else if (sessionData.session?.user) {
+  setLoggedIn(sessionData.session.user);
+  await loadOrInitializeCloud(sessionData.session.user);
+} else {
+  setLoggedIn(null);
+  showMessage("Entre ou crie uma conta para ativar a sincronização. Seus dados locais serão preservados.");
+}
+</script>
+
+<script>if("serviceWorker" in navigator && location.protocol.startsWith("http")){window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));}</script></body></html>

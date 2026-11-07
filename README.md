@@ -12,3 +12,7 @@ Configure Site URL e Redirect URL para:
 A tabela `public.app_data` deve existir com RLS e políticas de acesso para o próprio usuário autenticado. Use apenas a Publishable Key no navegador. Nunca publique a Secret Key ou service_role.
 
 A recuperação de senha usa `resetPasswordForEmail` e processa o evento `PASSWORD_RECOVERY` para permitir `updateUser({ password })`.
+
+
+## Tipografia
+A interface usa Inter (Google Fonts), com fontes de sistema como fallback quando offline.
